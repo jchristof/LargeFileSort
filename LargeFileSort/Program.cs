@@ -26,19 +26,19 @@ namespace LargeFileSort {
                     sBuilder.Append(data[i].ToString("x2"));
                 }
 
+                //hash = "619a1508fa3690f2419ce6b7c5a8e796"
                 var hash = sBuilder.ToString();
                 
             }
         }
 
-        public static StringBuilder Decompress(FileInfo fileToDecompress) {
-            int tempFileCount = 0;
-            StringBuilder sb = new StringBuilder();
+        static int DecompressToTempFiles(FileInfo fileToDecompress) {
+            int tempFileCount1 = 0;
+
             using (FileStream originalFileStream = fileToDecompress.OpenRead()) {
                 using (GZipStream decompressionStream = new GZipStream(originalFileStream, CompressionMode.Decompress)) {
                     using (StreamReader streamReader = new StreamReader(decompressionStream)) {
-                    
-                        
+
                         var listOfStrings = new List<string>();
                         while (!streamReader.EndOfStream) {
 
@@ -48,14 +48,22 @@ namespace LargeFileSort {
 
                             listOfStrings.Sort();
 
-                            File.WriteAllLines($@"D:\dl\BigSort\file_{tempFileCount}", listOfStrings);
-                            tempFileCount++;
+                            File.WriteAllLines($@"D:\dl\BigSort\file_{tempFileCount1}", listOfStrings);
+                            tempFileCount1++;
                             listOfStrings.Clear();
                         }
                     }
                 }
 
             }
+
+            return tempFileCount1;
+        }
+
+        public static StringBuilder Decompress(FileInfo fileToDecompress) {
+            
+            int tempFileCount = DecompressToTempFiles(fileToDecompress);
+           
 
             var mergedLinesArray = new List<string>();
             var fileArray = new List<StreamReader>();
@@ -74,8 +82,12 @@ namespace LargeFileSort {
 
             mergedLinesArray.Sort();
 
+            var sb = new StringBuilder();
+
             while (true) {
                 var smallest = mergedLinesArray[0];
+
+                
                 sb.Append(smallest[28]);
                 Console.Write(smallest[28]);
 
@@ -107,8 +119,11 @@ namespace LargeFileSort {
 
                 lineFileLookup.Add(nextLine, nextLineStream);
 
-                mergedLinesArray.Add(nextLine);
-                mergedLinesArray.Sort();         
+                int insertionIndex = mergedLinesArray.BinarySearch(nextLine);
+                if (insertionIndex < 0) {
+                    mergedLinesArray.Insert(~insertionIndex, nextLine);
+                }
+    
             }
 
         }
