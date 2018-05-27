@@ -12,27 +12,46 @@ namespace LargeFileSort {
 
         static void Main(string[] args) {
 
+            if (args.Length != 1) {
+                Console.WriteLine("Supply the path to bigfile.txt.gz as the some cmd argument.");
+                Console.ReadKey();
+                return;
+            }
+
+            var rootDir = args[0];
+            var path = Path.Combine(rootDir, "bigfile.txt.gz");
+            if (!File.Exists(path)) {
+                Console.WriteLine("Could not find bigfile.txt.gz at that path.");
+                Console.ReadKey();
+                return;
+            }
+
+#if DEBUG
             var stopWatch = new Stopwatch();
             stopWatch.Start();
-            var fileInfo = new FileInfo(@"D:\dl\BigSort\bigfile.txt.gz");
-            var sb = Decompress(fileInfo);
+#endif
+            var sb = FindAnswer(new FileInfo(path), rootDir);
+#if DEBUG
             stopWatch.Stop();
-            var elapsed = stopWatch.Elapsed;
-            using (MD5 md5Hash = MD5.Create()) {
-                byte[] data = md5Hash.ComputeHash(Encoding.ASCII.GetBytes(sb.ToString()));
-                StringBuilder sBuilder = new StringBuilder();
-
-                for (int i = 0; i < data.Length; i++) {
-                    sBuilder.Append(data[i].ToString("x2"));
-                }
-
-                //hash = "619a1508fa3690f2419ce6b7c5a8e796"
-                var hash = sBuilder.ToString();
-                
-            }
+            // 619a1508fa3690f2419ce6b7c5a8e796 0:37
+            Console.WriteLine($"{ComputeHash(sb)} {stopWatch.Elapsed}");
+            Console.ReadKey();
+#endif
+            Cleanup(rootDir);
         }
 
-        static int DecompressToTempFiles(FileInfo fileToDecompress) {
+        static StringBuilder FindAnswer(FileInfo fileToDecompress, string path) {
+
+            var tempFileCount = DecompressToTempFiles(fileToDecompress, path);
+
+            var stringBuilder =  BuildAnswerFromFiles(tempFileCount, path);
+
+            WriteCompressedAnswer(stringBuilder, path);
+
+            return stringBuilder;
+        }
+
+        static int DecompressToTempFiles(FileInfo fileToDecompress, string path) {
             int tempFileCount1 = 0;
 
             using (FileStream originalFileStream = fileToDecompress.OpenRead()) {
@@ -42,13 +61,12 @@ namespace LargeFileSort {
                         var listOfStrings = new List<string>();
                         while (!streamReader.EndOfStream) {
 
-                            for (int i = 0; i < 5000 && !streamReader.EndOfStream; i++) {
+                            for (int i = 0; i < 5000 && !streamReader.EndOfStream; i++) 
                                 listOfStrings.Add(streamReader.ReadLine());
-                            }
 
                             listOfStrings.Sort();
 
-                            File.WriteAllLines($@"D:\dl\BigSort\file_{tempFileCount1}", listOfStrings);
+                            File.WriteAllLines(Path.Combine(path, $@"file_{tempFileCount1}"), listOfStrings);
                             tempFileCount1++;
                             listOfStrings.Clear();
                         }
@@ -60,17 +78,13 @@ namespace LargeFileSort {
             return tempFileCount1;
         }
 
-        public static StringBuilder Decompress(FileInfo fileToDecompress) {
-            
-            int tempFileCount = DecompressToTempFiles(fileToDecompress);
-           
-
+        static StringBuilder BuildAnswerFromFiles(int tempFileCount, string path) {
             var mergedLinesArray = new List<string>();
             var fileArray = new List<StreamReader>();
             var lineFileLookup = new Dictionary<string, StreamReader>();
 
             for (int i = 0; i < tempFileCount; i++) {
-                var fileInfo = new FileInfo($@"D:\dl\BigSort\file_{i}");
+                var fileInfo = new FileInfo(Path.Combine(path, $"file_{i}"));
                 var fileStream = fileInfo.OpenRead();
                 var streamReader = new StreamReader(fileStream);
                 var firstLine = streamReader.ReadLine();
@@ -87,31 +101,20 @@ namespace LargeFileSort {
             while (true) {
                 var smallest = mergedLinesArray[0];
 
-                
                 sb.Append(smallest[28]);
-                Console.Write(smallest[28]);
+                //Console.Write(smallest[28]);
 
                 mergedLinesArray.Remove(smallest);
 
                 var nextLineStream = lineFileLookup[smallest];
                 lineFileLookup.Remove(smallest);
 
-                
                 var nextLine = nextLineStream.ReadLine();
 
                 if (nextLine == null) {
                     fileArray.Remove(nextLineStream);
-                    if (fileArray.Count == 0) {
-                        //var wordCount = sb.ToString().Split(' ').Where(x=>x.Trim() != string.Empty).ToArray().Length;
-
-                        using (FileStream fileToCompress = File.Create(@"D:\dl\BigSort\answer.gz")) {
-                            using (GZipStream compressionStream = new GZipStream(fileToCompress, CompressionMode.Compress)) {
-                                compressionStream.Write(Encoding.ASCII.GetBytes(sb.ToString()), 0, sb.Length);
-                            }
-                        }
-                            
+                    if (fileArray.Count == 0)
                         return sb;
-                    }
                 }
 
                 if (nextLine == null)
@@ -120,10 +123,36 @@ namespace LargeFileSort {
                 lineFileLookup.Add(nextLine, nextLineStream);
 
                 int insertionIndex = mergedLinesArray.BinarySearch(nextLine);
-                if (insertionIndex < 0) {
+                if (mergedLinesArray.BinarySearch(nextLine) < 0)
                     mergedLinesArray.Insert(~insertionIndex, nextLine);
+            }
+        }
+
+        static void Cleanup(string path) {
+            var tempFiles = Directory.GetFiles(path).Where(x => x.Contains("file_"));
+            foreach (string tempFile in tempFiles) {
+                File.Delete(tempFile);
+            }
+            
+        }
+        static string ComputeHash(StringBuilder stringBuilder) {
+            using (MD5 md5Hash = MD5.Create()) {
+                byte[] data = md5Hash.ComputeHash(Encoding.ASCII.GetBytes(stringBuilder.ToString()));
+                StringBuilder sBuilder = new StringBuilder();
+
+                foreach (byte t in data)
+                    sBuilder.Append(t.ToString("x2"));
+
+                return sBuilder.ToString();
+
+            }
+        }
+
+        static void WriteCompressedAnswer(StringBuilder stringBuilder, string path) {
+            using (FileStream fileToCompress = File.Create(Path.Combine(path, "answer.gz"))) {
+                using (GZipStream compressionStream = new GZipStream(fileToCompress, CompressionMode.Compress)) {
+                    compressionStream.Write(Encoding.ASCII.GetBytes(stringBuilder.ToString()), 0, stringBuilder.Length);
                 }
-    
             }
 
         }
