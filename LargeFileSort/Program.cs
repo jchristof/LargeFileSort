@@ -21,7 +21,7 @@ namespace LargeFileSort {
             var rootDir = args[0];
             var path = Path.Combine(rootDir, "bigfile.txt.gz");
             if (!File.Exists(path)) {
-                Console.WriteLine("Could not find bigfile.txt.gz at that path.");
+                Console.WriteLine($"Could not find bigfile.txt.gz in {rootDir}");
                 Console.ReadKey();
                 return;
             }
