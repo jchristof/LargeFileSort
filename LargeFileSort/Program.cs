@@ -79,17 +79,12 @@ namespace LargeFileSort {
                     if (fileArray.Count == 0) {
                         //var wordCount = sb.ToString().Split(' ').Where(x=>x.Trim() != string.Empty).ToArray().Length;
 
-                        using (MemoryStream memoryStream = new MemoryStream()) {
-                            using (StreamWriter writer = new StreamWriter(memoryStream)) {
-                                writer.Write(sb.ToString());
-                                writer.Flush();
-
-                                using (GZipStream compressionStream = new GZipStream(memoryStream, CompressionMode.Compress)) {
-                                    compressionStream.Write(Encoding.ASCII.GetBytes(sb.ToString()), 0, sb.Length);
-                                }
+                        using (FileStream fileToCompress = File.Create(@"D:\dl\BigSort\answer.gz")) {
+                            using (GZipStream compressionStream = new GZipStream(fileToCompress, CompressionMode.Compress)) {
+                                compressionStream.Write(Encoding.ASCII.GetBytes(sb.ToString()), 0, sb.Length);
                             }
                         }
-
+                            
                         return;
                     }
                 }
