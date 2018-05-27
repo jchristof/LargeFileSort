@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -9,9 +10,12 @@ namespace LargeFileSort {
     class Program {
         static void Main(string[] args) {
 
-            //-i -o
+            var stopWatch = new Stopwatch();
+            stopWatch.Start();
             var fileInfo = new FileInfo(@"D:\dl\BigSort\bigfile.txt.gz");
             Decompress(fileInfo);
+            stopWatch.Stop();
+            var elapsed = stopWatch.Elapsed;
         }
        
         public static void Decompress(FileInfo fileToDecompress) {
@@ -73,7 +77,19 @@ namespace LargeFileSort {
                 if (nextLine == null) {
                     fileArray.Remove(nextLineStream);
                     if (fileArray.Count == 0) {
-                        var wordCount = sb.ToString().Split(' ').Where(x=>x.Trim() != string.Empty).ToArray().Length;
+                        //var wordCount = sb.ToString().Split(' ').Where(x=>x.Trim() != string.Empty).ToArray().Length;
+
+                        using (MemoryStream memoryStream = new MemoryStream()) {
+                            using (StreamWriter writer = new StreamWriter(memoryStream)) {
+                                writer.Write(sb.ToString());
+                                writer.Flush();
+
+                                using (GZipStream compressionStream = new GZipStream(memoryStream, CompressionMode.Compress)) {
+                                    compressionStream.Write(Encoding.ASCII.GetBytes(sb.ToString()), 0, sb.Length);
+                                }
+                            }
+                        }
+
                         return;
                     }
                 }
