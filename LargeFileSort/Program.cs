@@ -4,21 +4,34 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace LargeFileSort {
     class Program {
+
         static void Main(string[] args) {
 
             var stopWatch = new Stopwatch();
             stopWatch.Start();
             var fileInfo = new FileInfo(@"D:\dl\BigSort\bigfile.txt.gz");
-            Decompress(fileInfo);
+            var sb = Decompress(fileInfo);
             stopWatch.Stop();
             var elapsed = stopWatch.Elapsed;
+            using (MD5 md5Hash = MD5.Create()) {
+                byte[] data = md5Hash.ComputeHash(Encoding.ASCII.GetBytes(sb.ToString()));
+                StringBuilder sBuilder = new StringBuilder();
+
+                for (int i = 0; i < data.Length; i++) {
+                    sBuilder.Append(data[i].ToString("x2"));
+                }
+
+                var hash = sBuilder.ToString();
+                
+            }
         }
-       
-        public static void Decompress(FileInfo fileToDecompress) {
+
+        public static StringBuilder Decompress(FileInfo fileToDecompress) {
             int tempFileCount = 0;
             StringBuilder sb = new StringBuilder();
             using (FileStream originalFileStream = fileToDecompress.OpenRead()) {
@@ -85,7 +98,7 @@ namespace LargeFileSort {
                             }
                         }
                             
-                        return;
+                        return sb;
                     }
                 }
 
